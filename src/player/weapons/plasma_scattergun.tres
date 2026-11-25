@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3]
+
+[ext_resource type="Script" path="res://src/combat/weapon_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"plasma_scattergun"
+display_name = "VX PLASMA SCATTERGUN"
+automatic = true
+fire_rate = 1.9
+energy_cost = 6.0
+pellets = 9
+spread_deg = 28.0
+bloom_per_shot_deg = 0.0
+bloom_max_deg = 0.0
+damage = 11.0
+damage_kind = 1
+projectile_speed = 58.0
+projectile_range = 15.0
+projectile_length = 0.8
+projectile_width = 0.15
+pierce = 1
+knockback = 5.0
+poise_damage = 12.0
+crit_chance = 0.08
+crit_multiplier = 2.0
+color = Color(1, 0.3, 0.8, 1)
+shake = 0.24
+muzzle_size = 1.9
+recoil_push = 7.0
+fire_sfx = &"shotgun_fire"

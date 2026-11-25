@@ -1,0 +1,16 @@
+# Godot 4
+.godot/
+/android/
+*.translation
+export_credentials.cfg
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.tmp
+*.blend1
+*.blend2
+
+# Builds
+/build/
+/exports/

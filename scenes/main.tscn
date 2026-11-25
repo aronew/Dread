@@ -1,0 +1,86 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/world/main.gd" id="1"]
+[ext_resource type="Script" path="res://src/world/test_arena.gd" id="2"]
+[ext_resource type="PackedScene" path="res://src/player/player.tscn" id="3"]
+[ext_resource type="Script" path="res://src/camera/iso_camera.gd" id="4"]
+[ext_resource type="Script" path="res://src/world/wave_director.gd" id="5"]
+[ext_resource type="Script" path="res://src/ui/hud.gd" id="6"]
+[ext_resource type="Script" path="res://src/ui/post_fx.gd" id="7"]
+
+[sub_resource type="Environment" id="env"]
+background_mode = 1
+background_color = Color(0.008, 0.016, 0.02, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.17, 0.25, 0.29, 1)
+ambient_light_energy = 1.0
+tonemap_mode = 3
+tonemap_exposure = 1.05
+tonemap_white = 6.0
+ssr_enabled = true
+ssr_max_steps = 48
+ssr_fade_in = 0.2
+ssr_fade_out = 2.0
+ssao_enabled = true
+ssao_radius = 1.4
+ssao_intensity = 2.4
+ssao_power = 1.6
+glow_enabled = true
+glow_levels/1 = 0.25
+glow_levels/2 = 0.6
+glow_levels/3 = 0.7
+glow_levels/4 = 0.35
+glow_levels/5 = 0.15
+glow_intensity = 0.55
+glow_strength = 0.9
+glow_bloom = 0.0
+glow_blend_mode = 1
+glow_hdr_threshold = 1.25
+fog_enabled = true
+fog_light_color = Color(0.04, 0.1, 0.12, 1)
+fog_density = 0.003
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.016
+volumetric_fog_albedo = Color(0.6, 0.85, 0.9, 1)
+volumetric_fog_emission = Color(0.0, 0.015, 0.02, 1)
+volumetric_fog_length = 70.0
+volumetric_fog_ambient_inject = 0.2
+adjustment_enabled = true
+adjustment_contrast = 1.08
+adjustment_saturation = 1.18
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.766, 0.5451, -0.3406, 0, 0.5299, 0.848, 0.6428, -0.6496, 0.4059, 0, 20, 0)
+light_color = Color(0.55, 0.72, 0.9, 1)
+light_energy = 0.85
+light_volumetric_fog_energy = 0.3
+shadow_enabled = true
+shadow_blur = 1.5
+directional_shadow_max_distance = 60.0
+
+[node name="Arena" type="Node3D" parent="."]
+script = ExtResource("2")
+
+[node name="Player" parent="." instance=ExtResource("3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 7)
+
+[node name="IsoCamera" type="Camera3D" parent="."]
+fov = 30.0
+far = 200.0
+script = ExtResource("4")
+
+[node name="WaveDirector" type="Node" parent="."]
+script = ExtResource("5")
+arena_path = NodePath("../Arena")
+
+[node name="PostFX" type="CanvasLayer" parent="."]
+script = ExtResource("7")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("6")

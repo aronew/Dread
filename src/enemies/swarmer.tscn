@@ -1,0 +1,36 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/enemies/swarmer.gd" id="1"]
+
+[sub_resource type="CapsuleShape3D" id="shape"]
+radius = 0.45
+height = 1.2
+
+[node name="Swarmer" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 3
+script = ExtResource("1")
+visual_id = &"swarmer"
+max_health = 38.0
+move_speed = 7.6
+acceleration = 45.0
+radius = 0.45
+max_poise = 12.0
+poise_regen = 10.0
+stagger_duration = 0.9
+finishable_hp_ratio = 0.3
+attack_range = 2.9
+attack_cooldown = 1.1
+telegraph_time = 0.38
+attack_duration = 0.45
+gore_primary = Color(1, 0.18, 0.5, 1)
+gore_secondary = Color(0.2, 1, 0.85, 1)
+gore_scale = 0.8
+health_orb_chance = 0.08
+energy_orb_chance = 0.22
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("shape")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
