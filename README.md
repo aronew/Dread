@@ -93,6 +93,7 @@ Other user args (after `--`):
 
 - `--autopilot` hands control to the bot with god mode on, for demos and soak tests. Use `--autopilot=melee` for a blade-focused bot.
 - `--showcase` lines up the player and one of each enemy, idle. Use it to inspect art after swapping models.
+- `--perf-probe` spawns a 48-enemy horde with the bot fighting it and prints game-logic frame times. Run it headless.
 - `--screenshot=out.png --shot-delay=6` saves a frame and quits.
 
 ## Roadmap

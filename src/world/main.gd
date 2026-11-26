@@ -78,6 +78,7 @@ func _build_pause_overlay() -> void:
 ##   --autopilot            bot plays the game (for demos / soak tests)
 ##   --showcase             line up one of each enemy, idle, for inspecting art
 ##   --smoke-test           run automated checks then quit with an exit code
+##   --perf-probe           big horde + autopilot, prints game-logic frame times
 ##   --screenshot=PATH      save a frame after --shot-delay seconds (default 6) and quit
 func _handle_cmdline() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -91,6 +92,8 @@ func _handle_cmdline() -> void:
 			add_child(bot)
 		elif a == "--showcase":
 			_showcase()
+		elif a == "--perf-probe":
+			add_child(load("res://tests/perf_probe.gd").new())
 		elif a == "--smoke-test":
 			add_child(preload("res://tests/smoke_test.gd").new())
 		elif a.begins_with("--screenshot="):
