@@ -39,8 +39,8 @@ window/vsync/vsync_mode=1
 
 [physics]
 
-common/physics_ticks_per_second=120
-common/max_physics_steps_per_frame=12
+common/physics_ticks_per_second=60
+common/max_physics_steps_per_frame=8
 3d/physics_engine="Jolt Physics"
 
 [rendering]

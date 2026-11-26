@@ -51,7 +51,9 @@ func _ready() -> void:
 	add_child(light)
 
 
-func _physics_process(delta: float) -> void:
+func _process(delta: float) -> void:
+	if delta <= 0.0:
+		return
 	_t += delta
 	var player := Combat.get_player(get_tree())
 	if player and not player.is_dead():

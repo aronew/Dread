@@ -46,7 +46,9 @@ func _ready() -> void:
 	add_child(_trail)
 
 
-func _physics_process(delta: float) -> void:
+func _process(delta: float) -> void:
+	if delta <= 0.0:
+		return
 	_t += delta
 	if is_instance_valid(target_node) and not target_node.is_dead():
 		target_point = target_node.global_position + Vector3.UP * 0.8

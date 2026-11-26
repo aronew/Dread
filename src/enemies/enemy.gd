@@ -53,6 +53,10 @@ var _hit_sfx_t: float = 0.0
 var _sep_frame: int = 0
 var _sep_cache: Vector3 = Vector3.ZERO
 var _stun_t: float = 0.0
+# render-side interpolation (physics runs at 60 Hz; visuals glide at any refresh rate)
+var _interp_prev: Vector3 = Vector3.ZERO
+var _interp_curr: Vector3 = Vector3.ZERO
+var _interp_ready: bool = false
 
 
 func _ready() -> void:
@@ -111,6 +115,10 @@ func _emerge() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if not _interp_ready:
+		_interp_curr = global_position
+		_interp_ready = true
+	_interp_prev = _interp_curr
 	attack_cd = maxf(attack_cd - delta, 0.0)
 	_hit_sfx_t -= delta
 	if not _dead and not fsm.is_in(&"staggered"):
@@ -127,9 +135,21 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	velocity -= _knock
 	global_position.y = 0.0
+	_interp_curr = global_position
 	visual.set_locomotion(velocity, move_speed)
 	visual.set_aim(facing)
 	_update_finish_marker(delta)
+
+
+## Draw the body between its last two physics positions so motion is smooth on
+## high-refresh displays even though AI/physics tick at 60 Hz. Only X/Z are
+## touched: visual.position.y belongs to emerge / leap / death animations.
+func _process(_delta: float) -> void:
+	if not _interp_ready or _dead:
+		return
+	var p := _interp_prev.lerp(_interp_curr, Engine.get_physics_interpolation_fraction())
+	visual.position.x = p.x - global_position.x
+	visual.position.z = p.z - global_position.z
 
 
 # =============================================================================

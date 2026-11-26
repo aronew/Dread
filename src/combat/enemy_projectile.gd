@@ -54,7 +54,9 @@ func reflect(new_dir: Vector3, by: Node) -> void:
 	Vfx.impact(global_position, new_dir, color, 1.5)
 
 
-func _physics_process(delta: float) -> void:
+func _process(delta: float) -> void:
+	if delta <= 0.0:
+		return
 	_t += delta
 	var wob := 1.0 + sin(_t * 30.0) * 0.12
 	_body.scale = Vector3(wob, 1.0 / wob, wob)

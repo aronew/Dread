@@ -16,12 +16,32 @@ static func get_player(tree: SceneTree) -> Node3D:
 	return tree.get_first_node_in_group(GROUP_PLAYER) as Node3D
 
 
+static var _living_cache: Array[Node] = []
+static var _living_key: int = -1
+
+
+## Living enemies, cached once per (process or physics) frame: every bullet,
+## the aim assist and the melee all query this many times a frame with hordes.
+## Treat the returned array as read-only.
 static func living_enemies(tree: SceneTree) -> Array[Node]:
-	var out: Array[Node] = []
-	for e in tree.get_nodes_in_group(GROUP_ENEMIES):
-		if is_instance_valid(e) and not e.is_dead():
-			out.append(e)
-	return out
+	var key := Engine.get_physics_frames() * 2 + 1 if Engine.is_in_physics_frame() else Engine.get_process_frames() * 2
+	if key != _living_key:
+		_living_key = key
+		_living_cache = []
+		for e in tree.get_nodes_in_group(GROUP_ENEMIES):
+			if is_instance_valid(e) and not e.is_dead():
+				_living_cache.append(e)
+	else:
+		# an enemy can die mid-frame; drop it lazily
+		_living_cache = _living_cache.filter(func(e): return is_instance_valid(e) and not e.is_dead()) if _has_dead(_living_cache) else _living_cache
+	return _living_cache
+
+
+static func _has_dead(arr: Array[Node]) -> bool:
+	for e in arr:
+		if not is_instance_valid(e) or e.is_dead():
+			return true
+	return false
 
 
 static func enemies_in_radius(tree: SceneTree, center: Vector3, radius: float) -> Array[Node]:
