@@ -12,21 +12,21 @@ const SCENES := {
 
 ## Hand-authored opening waves; afterwards waves are generated with scaling.
 const WAVES := [
-	{"swarmer": 6},
-	{"swarmer": 8, "spitter": 2},
-	{"swarmer": 6, "spitter": 3},
-	{"brute": 1, "swarmer": 6},
-	{"swarmer": 12, "spitter": 3},
-	{"brute": 1, "spitter": 3, "swarmer": 8},
+	{"swarmer": 10},
+	{"swarmer": 12, "spitter": 2},
+	{"swarmer": 14, "spitter": 3},
+	{"brute": 1, "swarmer": 10, "spitter": 2},
+	{"swarmer": 20, "spitter": 4},
+	{"brute": 2, "spitter": 3, "swarmer": 14},
 ]
 
 @export var arena_path: NodePath
 @export var auto_start: bool = true
-@export var first_wave_delay: float = 2.5
-@export var breather: float = 4.0
+@export var first_wave_delay: float = 1.5
+@export var breather: float = 3.0
 @export var portal_time: float = 0.9
-@export var burst_size: int = 4
-@export var burst_interval: float = 1.6
+@export var burst_size: int = 5
+@export var burst_interval: float = 1.1
 
 var arena: TestArena
 var wave: int = 0
@@ -84,12 +84,13 @@ func _start_next_wave() -> void:
 	Events.wave_started.emit(wave, _queue.size())
 	Events.announce.emit("WAVE %d" % wave, Color(1.0, 0.3, 0.35))
 	Sfx.play(&"wave_start", Vector3.INF, -6.0)
+	Sfx.play_music(&"combat_loop")
 
 
 func _generate(n: int) -> Dictionary:
 	var k := n - WAVES.size()
 	return {
-		"swarmer": 10 + k * 2,
+		"swarmer": 18 + k * 3,
 		"spitter": 3 + k / 2,
 		"brute": 1 + k / 3,
 	}

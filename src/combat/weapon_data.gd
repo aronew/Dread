@@ -11,8 +11,8 @@ extends Resource
 @export var energy_cost: float = 1.0
 @export var pellets: int = 1
 @export var spread_deg: float = 2.0
-@export var bloom_per_shot_deg: float = 0.6  ## extra spread while sustaining fire
-@export var bloom_max_deg: float = 5.0
+@export var bloom_per_shot_deg: float = 0.0  ## extra spread while sustaining fire
+@export var bloom_max_deg: float = 0.0
 @export_group("Projectile")
 @export var damage: float = 12.0
 @export var damage_kind: DamageInfo.Kind = DamageInfo.Kind.BULLET
@@ -21,6 +21,10 @@ extends Resource
 @export var projectile_length: float = 1.1
 @export var projectile_width: float = 0.09
 @export var pierce: int = 0
+@export var hit_radius: float = 0.3          ## top-down collision radius (generous = feels accurate)
+@export var homing: float = 0.0              ## bullet magnetism turn rate (rad/s) toward the aim-assist target
+@export var homing_cone_deg: float = 25.0    ## only steer when the target is within this angle
+@export var lead_factor: float = 0.8         ## how much to lead moving aim-assist targets (0..1)
 @export var knockback: float = 2.0
 @export var poise_damage: float = 4.0
 @export var crit_chance: float = 0.12

@@ -292,20 +292,18 @@ func _build_cover() -> void:
 
 
 func _build_centerpiece() -> void:
-	var ring_mat := K.glow(Color(0.1, 0.75, 1.0), 0.7)
-	var dark := K.mat(Color(0.1, 0.12, 0.13), 0.5, 0.22)
-	var t := K.torus(_decor, 5.6, 6.0, Vector3(0, 0.02, 0), ring_mat, Vector3.ZERO, Vector3(1, 0.05, 1))
-	t.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	K.cylinder(_decor, 5.5, 5.5, 0.03, Vector3(0, 0.012, 0), dark, Vector3.ZERO, Vector3.ONE, 48)
-	var t2 := K.torus(_decor, 3.0, 3.15, Vector3(0, 0.035, 0), K.glow(Color(0.25, 0.9, 1.0), 1.0), Vector3.ZERO, Vector3(1, 0.05, 1))
-	t2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var platform := K.mat(Color(0.09, 0.1, 0.11), 0.6, 0.3)
+	var accent := K.mat(Color(0.02, 0.06, 0.08), 0.5, 0.3, Color(0.1, 0.7, 1.0), 0.9)
+	var accent_green := K.mat(Color(0.02, 0.06, 0.04), 0.5, 0.3, Color(0.2, 1.0, 0.6), 0.6)
+	K.cylinder(_decor, 5.6, 5.6, 0.03, Vector3(0, 0.012, 0), platform, Vector3.ZERO, Vector3.ONE, 48)
+	for ring in [[5.55, 5.7, accent], [2.95, 3.05, accent], [1.25, 1.33, accent_green]]:
+		var t := K.torus(_decor, ring[0], ring[1], Vector3(0, 0.03, 0), ring[2], Vector3.ZERO, Vector3(1, 0.04, 1))
+		t.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for i in 16:
-		var a := i * TAU / 16.0
-		var seg := K.box(_decor, Vector3(0.9, 0.04, 0.25), Vector3(cos(a) * 4.3, 0.04, sin(a) * 4.3), K.glow(Color(0.2, 1.0, 0.6), 0.6), Vector3(0, -rad_to_deg(a), 0))
+		var ang := i * TAU / 16.0
+		var seg := K.box(_decor, Vector3(0.7, 0.03, 0.14), Vector3(cos(ang) * 4.3, 0.035, sin(ang) * 4.3), accent_green, Vector3(0, -rad_to_deg(ang), 0))
 		seg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var core := K.cylinder(_decor, 1.3, 1.3, 0.05, Vector3(0, 0.04, 0), K.glow(Color(0.2, 0.9, 0.5), 0.3), Vector3.ZERO, Vector3.ONE, 32)
-	core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_omni(Vector3(0, 1.0, 0), Color(0.3, 1.0, 0.7), 2.0, 8.0)
+	_omni(Vector3(0, 1.0, 0), Color(0.3, 0.9, 1.0), 0.8, 7.0)
 
 
 # -----------------------------------------------------------------------------

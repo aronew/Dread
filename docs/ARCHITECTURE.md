@@ -80,6 +80,20 @@ ignores poise until it drops below 35% HP ("CORE EXPOSED").
 Movement uses a navmesh baked at runtime (`NavigationRegion3D.bake_navigation_mesh`)
 plus cheap separation steering, so packs surround you instead of stacking.
 
+## Feel pass (what makes combat land)
+
+These came from frame-by-frame study of DreadHunter's official gameplay footage. The tuning lives in the files named.
+
+| Area | How it works | Where |
+|---|---|---|
+| **Hit detection** | Bullets hit **top-down (2D)**: anything whose footprint circle they cross, at any height. What's under the cursor is what you hit. | `Projectile._process`, `seg_circle` |
+| **Aim assist** | The enemy nearest the cursor (or inside a 7° cone; 16° on gamepad) becomes `aim_target`. Shots lead it, and rifle rounds gently home in (bullet magnetism). Pink brackets show the lock. | `Player._update_aim_target`, `WeaponController._fire`, `WeaponData.homing` |
+| **Smoothness** | Player movement, aim and projectiles run at render rate (`_process`), not on the physics tick, so they're judder-free at any refresh rate. The camera updates last each frame. | `Player._process`, `IsoCamera.process_priority` |
+| **Camera** | The look-ahead uses the mouse's *screen* offset, never its world point. That prevents the aim-drift feedback loop. | `IsoCamera._desired_look_ahead` |
+| **Melee** | A buffered 3-hit combo: 0.2 s swings, chaining at 60% of the swing. Each swing auto-targets and lunges, and damage lands on an active frame (45 ms in). Gunfire can cancel the recovery; a slash cancels a dash. | `MeleeController.COMBO` |
+| **Hit reactions** | White flash that holds briefly, squash flinch, knockback, and hit-stun that interrupts light enemies' wind-ups. Kills pop, then splat. | `Enemy.apply_damage`, `ActorVisual.squash` |
+| **Dash** | 3 charges, 0.13 s at 36 m/s, buffered input, exit momentum, speed-lines. | `Player._start_dash` |
+
 ## Game feel checklist (where to tune)
 
 | Feel | Where |

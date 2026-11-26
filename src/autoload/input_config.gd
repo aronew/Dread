@@ -33,6 +33,9 @@ func _enter_tree() -> void:
 	_bind(&"debug_god_mode", [_key(KEY_F5)])
 	_bind(&"debug_kill_all", [_key(KEY_F6)])
 	_bind(&"debug_slowmo", [_key(KEY_F7)])
+	_bind(&"cycle_quality", [_key(KEY_F8)])
+	_bind(&"toggle_fps", [_key(KEY_F9)])
+	_bind(&"toggle_music", [_key(KEY_M)])
 
 
 func _bind(action: StringName, events: Array) -> void:

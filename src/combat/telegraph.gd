@@ -52,6 +52,8 @@ func _build(size: Vector2, z_offset: float) -> void:
 	_mat.shader = SHADER
 	_mat.set_shader_parameter(&"color", color)
 	_mat.set_shader_parameter(&"shape", int(shape))
+	if shape == Shape.LINE:
+		_mat.set_shader_parameter(&"energy", 1.1)  # aim lines: readable, not a neon bar
 	_mesh.material_override = _mat
 	_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_mesh)

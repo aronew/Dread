@@ -5,6 +5,10 @@ extends Node
 const POOL_SIZE := 40
 
 var listener_position: Vector3 = Vector3.ZERO  ## updated by the camera each frame
+var music_volume_db: float = -12.0
+var _music: AudioStreamPlayer
+var _music_id: StringName = &""
+var _music_muted: bool = false
 var _players: Array[AudioStreamPlayer] = []
 var _next: int = 0
 var _last_played: Dictionary = {}
@@ -18,9 +22,18 @@ func _ready() -> void:
 		p.bus = &"SFX"
 		add_child(p)
 		_players.append(p)
+	_music = AudioStreamPlayer.new()
+	_music.bus = &"Music"
+	_music.volume_db = -60.0
+	add_child(_music)
 
 
 func _setup_buses() -> void:
+	if AudioServer.get_bus_index(&"Music") == -1:
+		AudioServer.add_bus()
+		var mi := AudioServer.bus_count - 1
+		AudioServer.set_bus_name(mi, &"Music")
+		AudioServer.set_bus_send(mi, &"Master")
 	if AudioServer.get_bus_index(&"SFX") != -1:
 		return
 	AudioServer.add_bus()
@@ -36,6 +49,29 @@ func _setup_buses() -> void:
 	var limiter := AudioEffectHardLimiter.new()
 	limiter.ceiling_db = -0.5
 	AudioServer.add_bus_effect(0, limiter)
+
+
+## Start (or keep) a looping music track with a fade-in. Survives scene reloads.
+func play_music(id: StringName, fade: float = 1.5) -> void:
+	if id == _music_id and _music.playing:
+		return
+	var stream := Assets.get_music(id)
+	if stream == null:
+		return
+	if "loop" in stream:
+		stream.loop = true
+	_music_id = id
+	_music.stream = stream
+	_music.volume_db = -50.0
+	_music.play()
+	var tw := create_tween()
+	tw.tween_property(_music, "volume_db", music_volume_db if not _music_muted else -80.0, fade)
+
+
+func toggle_music() -> bool:
+	_music_muted = not _music_muted
+	_music.volume_db = -80.0 if _music_muted else music_volume_db
+	return not _music_muted
 
 
 ## at = world position for distance attenuation (Vector3.INF = UI / non-positional).

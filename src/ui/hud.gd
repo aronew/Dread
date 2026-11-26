@@ -68,7 +68,7 @@ func _ready() -> void:
 
 	debug_label = _label(root, 15, Color(0.6, 0.8, 0.85, 0.6))
 	_place(debug_label, Vector2(0.0, 0.0), Rect2(20, 14, 900, 24))
-	debug_label.text = "F1 swarm · F2 spitter · F3 hulk · F5 god · F6 kill all · F7 slow-mo · R restart"
+	debug_label.text = "F1 swarm · F2 spitter · F3 hulk · F5 god · F6 kill all · F7 slow-mo · F8 graphics · M music · R restart"
 
 	crosshair = Crosshair.new()
 	crosshair.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -85,6 +85,7 @@ func _ready() -> void:
 	Events.weapon_switched.connect(weapons.set_active)
 	Events.weapon_fired.connect(func(_w): crosshair.kick())
 	Events.hit_confirmed.connect(crosshair.hit)
+	Events.aim_target_changed.connect(crosshair.set_target)
 	Events.enemy_killed.connect(func(_e, info): combo.add_kill(info))
 	Events.finisher_performed.connect(func(_e): combo.add_bonus(3))
 	Events.wave_started.connect(_on_wave_started)
@@ -474,6 +475,12 @@ class Crosshair extends Control:
 	var _hit: float = 0.0
 	var _kill: float = 0.0
 	var _crit: bool = false
+	var _target: Node3D = null
+	var _lock: float = 0.0
+
+	func set_target(t: Node3D) -> void:
+		_target = t
+		_lock = 0.0
 
 	func _ready() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CONFINED_HIDDEN if not OS.has_feature("headless") else Input.MOUSE_MODE_VISIBLE
@@ -491,10 +498,39 @@ class Crosshair extends Control:
 		_spread = move_toward(_spread, 0.0, delta * 40.0)
 		_hit = move_toward(_hit, 0.0, delta * 6.0)
 		_kill = move_toward(_kill, 0.0, delta * 3.5)
+		_lock = move_toward(_lock, 1.0, delta * 9.0)
 		queue_redraw()
 
+	## Corner brackets that snap onto the aim-assist target.
+	func _draw_lock() -> void:
+		if _target == null or not is_instance_valid(_target) or _target.is_dead():
+			return
+		var cam := get_viewport().get_camera_3d()
+		if cam == null:
+			return
+		var r: float = float(_target.radius)
+		var world := _target.global_position + Vector3.UP * (0.5 + r * 0.6)
+		if cam.is_position_behind(world):
+			return
+		var c := cam.unproject_position(world)
+		var half := (22.0 + r * 16.0) * lerpf(1.8, 1.0, _lock)
+		var leg := 9.0
+		var col := Color(1.0, 0.3, 0.55, 0.9 * _lock)
+		for sx in [-1.0, 1.0]:
+			for sy in [-1.0, 1.0]:
+				var corner := c + Vector2(sx * half, sy * half)
+				draw_line(corner, corner - Vector2(sx * leg, 0), col, 2.5)
+				draw_line(corner, corner - Vector2(0, sy * leg), col, 2.5)
+
 	func _draw() -> void:
+		_draw_lock()
 		var m := get_local_mouse_position()
+		# bots/cutscenes aim without a mouse: put the reticle where they aim
+		var pl := Combat.get_player(get_tree())
+		if pl and pl.aim_override != Vector3.INF:
+			var cam := get_viewport().get_camera_3d()
+			if cam:
+				m = cam.unproject_position(pl.aim_point)
 		var col := HUD.CYAN
 		var gap := 10.0 + _spread
 		var len := 10.0

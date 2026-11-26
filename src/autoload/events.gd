@@ -13,6 +13,7 @@ signal player_dash_charges_changed(charges: int, max_charges: int, recharge_rati
 signal ability_cooldown_changed(slot: StringName, ratio: float)  # ratio: 0 = ready, 1 = just used
 signal weapon_switched(index: int, weapon: Resource)
 signal weapon_fired(weapon: Resource)
+signal aim_target_changed(target: Node3D)
 
 # --- Combat ---------------------------------------------------------------
 signal enemy_spawned(enemy: Node3D)

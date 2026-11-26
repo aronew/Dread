@@ -33,6 +33,7 @@ var _lean := Vector2.ZERO
 var _hit_kick := 0.0
 var _ability_t := 0.0
 var _dead := false
+var _spin := false
 
 
 func _build() -> void:
@@ -138,6 +139,13 @@ func play_action(action: StringName, duration: float = -1.0) -> void:
 			_melee_dur = duration if duration > 0.0 else 0.22
 			_melee_t = 0.0
 			_melee_side = -_melee_side
+			_spin = false
+		&"melee_r", &"melee_l", &"melee_spin":
+			# side +1 = blade sweeps right-to-left, -1 = left-to-right
+			_melee_dur = duration if duration > 0.0 else 0.2
+			_melee_t = 0.0
+			_melee_side = -1.0 if action == &"melee_l" else 1.0
+			_spin = action == &"melee_spin"
 		&"dash":
 			_thrust = 1.0
 		&"ability":
@@ -173,7 +181,7 @@ func _animate(delta: float) -> void:
 	else:
 		_hips_yaw = lerp_angle(_hips_yaw, _aim_yaw, minf(delta * 6.0, 1.0))
 	hips.rotation.y = _hips_yaw
-	_torso_yaw = lerp_angle(_torso_yaw, _aim_yaw, minf(delta * 30.0, 1.0))
+	_torso_yaw = lerp_angle(_torso_yaw, _aim_yaw, minf(delta * 60.0, 1.0))
 	var twist := 0.0
 
 	# --- Gait
@@ -204,10 +212,17 @@ func _animate(delta: float) -> void:
 		_melee_t += delta / _melee_dur
 		var t := clampf(_melee_t, 0.0, 1.0)
 		var e := 1.0 - pow(1.0 - t, 3.0)
-		blade_arm.rotation.y = lerpf(1.5, -1.7, e) * _melee_side * -1.0
-		blade_arm.rotation.x = -0.3
-		blade_arm.rotation.z = lerpf(0.4, -0.4, e) * _melee_side
-		twist = lerpf(0.5, -0.6, e) * _melee_side * -1.0 * (1.0 - clampf(_melee_t - 1.0, 0.0, 0.6) / 0.6)
+		if _spin:
+			# heavy spin: blade held out wide, whole torso whips around once
+			blade_arm.rotation.y = 1.25
+			blade_arm.rotation.x = -0.15
+			blade_arm.rotation.z = 0.55
+			twist = TAU * e
+		else:
+			blade_arm.rotation.y = lerpf(1.5, -1.7, e) * _melee_side * -1.0
+			blade_arm.rotation.x = -0.3
+			blade_arm.rotation.z = lerpf(0.4, -0.4, e) * _melee_side
+			twist = lerpf(0.5, -0.6, e) * _melee_side * -1.0 * (1.0 - clampf(_melee_t - 1.0, 0.0, 0.6) / 0.6)
 		if _melee_t >= 1.6:
 			_melee_t = -1.0
 	else:

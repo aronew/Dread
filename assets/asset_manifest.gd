@@ -76,6 +76,11 @@ const PROPS := {
 	&"barrier_door": "res://assets/models/props/barrier_door.glb",
 }
 
+## Music: id -> base path without extension (.ogg / .mp3 / .wav tried in order). Loops.
+const MUSIC := {
+	&"combat_loop": "res://assets/audio/music/combat_loop",
+}
+
 ## SFX: id -> base path without extension (.wav / .ogg / .mp3 are tried in order).
 const SFX_DIR := "res://assets/audio/sfx/"
 const SFX := [

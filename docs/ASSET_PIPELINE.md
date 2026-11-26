@@ -125,6 +125,10 @@ master limiter), so mixed levels stay consistent.
 
 ---
 
+Music lives in `assets/audio/music/`. Drop `combat_loop.ogg` (or `.mp3`/`.wav`)
+there to replace the generated loop (`tools/gen_music.py`); it loops automatically
+and plays from the first wave on its own **Music** bus.
+
 ## 5. Adding a new enemy
 
 1. Write a placeholder visual in `assets/placeholders/` (extend `ActorVisual`) or skip straight to a `.glb`.

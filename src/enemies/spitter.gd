@@ -57,7 +57,7 @@ func begin_telegraph() -> void:
 	super.begin_telegraph()
 	_aim_dir = _predict_dir()
 	face(_aim_dir)
-	telegraph_marker = Telegraph.line(get_parent(), global_position, _aim_dir, 0.9, minf(distance_to_target() + 2.0, max_fire_range), telegraph_time, Color(0.55, 1.0, 0.1))
+	telegraph_marker = Telegraph.line(get_parent(), global_position, _aim_dir, 0.4, minf(distance_to_target() + 2.0, max_fire_range), telegraph_time, Color(0.5, 0.9, 0.1))
 
 
 func telegraph_step(delta: float, progress: float) -> void:

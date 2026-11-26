@@ -22,10 +22,16 @@ var sockets: Dictionary = {}  # StringName -> Node3D
 var overlay: ShaderMaterial
 var _flash: float = 0.0
 var _charge: float = 0.0
+var _squash: float = 0.0
+var _squash_vel: float = 0.0
+var _base_scale: Vector3 = Vector3.ONE
+var _highlight: float = 0.0
+var _highlight_target: float = 0.0
 
 
 func _ready() -> void:
 	_build()
+	_base_scale = scale
 	_install_overlay()
 
 
@@ -36,9 +42,35 @@ func _build() -> void:
 
 func _process(delta: float) -> void:
 	if _flash > 0.0:
-		_flash = maxf(_flash - delta * 7.0, 0.0)
+		# values above 1.0 hold pure white for a moment before fading (crisp hit frames)
+		_flash = maxf(_flash - delta * 9.0, 0.0)
 		overlay.set_shader_parameter(&"flash", _flash)
+	if _highlight != _highlight_target:
+		_highlight = move_toward(_highlight, _highlight_target, delta * 8.0)
+		overlay.set_shader_parameter(&"highlight", _highlight)
+	# hit squash: damped spring back to rest
+	if absf(_squash) > 0.001 or absf(_squash_vel) > 0.001:
+		_squash_vel += (-_squash * 900.0 - _squash_vel * 28.0) * delta
+		_squash += _squash_vel * delta
+		scale = _base_scale * Vector3(1.0 + _squash, 1.0 - _squash * 1.2, 1.0 + _squash)
 	_animate(delta)
+
+
+## Flinch on hit: amount ~0.1 (bullet) .. 0.35 (heavy melee).
+func squash(amount: float) -> void:
+	_squash = clampf(_squash + amount, -0.4, 0.4)
+
+
+## Constant silhouette rim so the actor reads against dark floors.
+func set_base_rim(color: Color, strength: float) -> void:
+	if overlay:
+		overlay.set_shader_parameter(&"base_rim_color", color)
+		overlay.set_shader_parameter(&"base_rim", strength)
+
+
+## Aim-target highlight (thin cool rim).
+func set_highlight(on: bool) -> void:
+	_highlight_target = 1.0 if on else 0.0
 
 
 ## Override: procedural animation tick.

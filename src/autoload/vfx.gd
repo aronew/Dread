@@ -11,6 +11,8 @@ const RING_SHADER := preload("res://assets/shaders/ring.gdshader")
 const SLASH_SHADER := preload("res://assets/shaders/slash_arc.gdshader")
 const GHOST_SHADER := preload("res://assets/shaders/ghost.gdshader")
 const CORRUPTION_SHADER := preload("res://assets/shaders/corruption.gdshader")
+const STREAK_SHADER := preload("res://assets/shaders/particle_streak.gdshader")
+const FLARE_SHADER := preload("res://assets/shaders/flare.gdshader")
 
 const MAX_DECALS := 110
 const MAX_NUMBERS := 56
@@ -23,6 +25,8 @@ const GOO_LIME := Color(0.6, 1.0, 0.15)
 const GOO_PURPLE := Color(0.65, 0.2, 1.0)
 const HOT_ORANGE := Color(1.0, 0.55, 0.15)
 const PLASMA_CYAN := Color(0.3, 0.85, 1.0)
+const GORE_DARK := Color(0.4, 0.02, 0.13)
+const CRIT_PINK := Color(1.0, 0.35, 0.65)
 
 var _ppm_cache: Dictionary = {}
 var _draw_cache: Dictionary = {}
@@ -31,14 +35,13 @@ var _decals: Array = []  # untyped: entries may be freed by their own fade tween
 var _numbers: Array[Label3D] = []
 var _number_idx: int = 0
 var _splats: Array[Texture2D] = []
-var _arc_mesh: ArrayMesh
+var _arc_meshes: Dictionary = {}
 var _quad: QuadMesh
 var _flash_lights: int = 0
 
 
 func _ready() -> void:
 	_splats = [_make_splat(0), _make_splat(1), _make_splat(2), _make_splat(3)]
-	_arc_mesh = _make_arc_mesh(deg_to_rad(170.0), 0.28, 1.0, 28)
 	_quad = QuadMesh.new()
 	_quad.size = Vector2.ONE
 	for i in MAX_NUMBERS:
@@ -46,9 +49,9 @@ func _ready() -> void:
 		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		l.no_depth_test = true
 		l.fixed_size = false
-		l.pixel_size = 0.0065
-		l.font_size = 56
-		l.outline_size = 14
+		l.pixel_size = 0.0085
+		l.font_size = 46
+		l.outline_size = 12
 		l.outline_modulate = Color(0.05, 0.0, 0.03, 0.95)
 		l.render_priority = 10
 		l.outline_render_priority = 9
@@ -68,8 +71,15 @@ func world() -> Node:
 
 func muzzle_flash(xform: Transform3D, color: Color, size: float = 1.0) -> void:
 	var fwd := -xform.basis.z
-	burst(&"flash", xform.origin, Basis.IDENTITY, color, 2, size)
-	burst(&"muzzle_sparks", xform.origin, basis_y(fwd), color, 7, size)
+	burst(&"flash", xform.origin + fwd * 0.12, Basis.IDENTITY, color, 1, 0.38 * size)
+	burst(&"flash", xform.origin + fwd * 0.4 * size, Basis.IDENTITY, color, 1, 0.22 * size)
+	burst(&"muzzle_sparks", xform.origin, basis_y(fwd), color, int(4 * size) + 3, size)
+
+
+## Bullet striking flesh: star flare + a few sparks kicked back toward the shooter.
+func bullet_hit(pos: Vector3, dir: Vector3, color: Color, crit: bool = false) -> void:
+	burst(&"flash", pos, Basis.IDENTITY, CRIT_PINK if crit else color, 1, 0.6 if crit else 0.38)
+	burst(&"sparks", pos, basis_y((-dir + Vector3.UP * 0.7).normalized()), color, 9 if crit else 5, 0.8)
 
 
 func impact(pos: Vector3, normal: Vector3, color: Color, size: float = 1.0) -> void:
@@ -83,25 +93,32 @@ func gore(pos: Vector3, dir: Vector3, color: Color, amount: float = 1.0, seconda
 	burst(&"goo", pos, basis_y(spray_dir), color, int(14 * amount), 1.0)
 	if amount >= 0.8:
 		burst(&"chunks", pos, basis_y(spray_dir), secondary, int(5 * amount), 1.0)
-	if randf() < 0.55 * amount:
-		var splat_pos := pos + Vector3(dir.x, 0, dir.z).normalized() * randf_range(0.6, 1.8)
-		splat(Vector3(splat_pos.x, 0.0, splat_pos.z), color, randf_range(0.5, 1.0) * maxf(amount, 0.6), 1.2)
+	if randf() < 0.6 * amount:
+		var splat_pos := pos + Vector3(dir.x, 0, dir.z).normalized() * randf_range(0.6, 2.0)
+		splat(Vector3(splat_pos.x, 0.0, splat_pos.z), color.lerp(GORE_DARK, 0.82), randf_range(0.5, 1.0) * maxf(amount, 0.6), 0.15)
 
 
 func death_burst(pos: Vector3, dir: Vector3, primary: Color, secondary: Color, size: float = 1.0) -> void:
-	burst(&"flash", pos, Basis.IDENTITY, primary.lightened(0.4), 1, 1.4 * size)
-	burst(&"goo", pos, basis_y((Vector3.UP + dir * 0.4).normalized()), primary, int(30 * size), size)
-	burst(&"chunks", pos, basis_y((Vector3.UP + dir * 0.5).normalized()), secondary, int(12 * size), size)
+	var flat := Vector3(dir.x, 0, dir.z)
+	flat = flat.normalized() if flat.length_squared() > 0.001 else Vector3.FORWARD
+	burst(&"flash", pos, Basis.IDENTITY, primary.lerp(Color.WHITE, 0.3), 1, 1.2 * size)
+	burst(&"goo", pos, basis_y((Vector3.UP + flat * 0.6).normalized()), primary, int(36 * size), size)
+	burst(&"chunks", pos, basis_y((Vector3.UP + flat * 0.7).normalized()), secondary, int(14 * size), size)
+	burst(&"chunks", pos, basis_y((Vector3.UP + flat * 0.3).normalized()), primary.darkened(0.2), int(8 * size), size)
 	burst(&"mist", pos, Basis.IDENTITY, primary.darkened(0.3), int(6 * size), size)
 	var ground := Vector3(pos.x, 0.0, pos.z)
-	splat(ground, primary, 1.3 * size, 1.4)
-	splat(ground + Vector3(dir.x, 0, dir.z).normalized() * 1.2 * size, secondary, 0.8 * size, 2.0)
+	splat(ground + flat * 0.5 * size, primary.lerp(GORE_DARK, 0.78), 1.6 * size, 0.2)
+	for i in 3:
+		var off := flat.rotated(Vector3.UP, randf_range(-0.9, 0.9)) * randf_range(1.2, 2.8) * size
+		splat(ground + off, primary.lerp(GORE_DARK, 0.85), randf_range(0.35, 0.7) * size, 0.15)
+	splat(ground - flat * 0.4 * size, secondary.darkened(0.3), 0.55 * size, 0.9)
+	shockwave(ground + Vector3.UP * 0.1, 1.6 * size, primary, 0.22, 0.12)
 	light_flash(pos + Vector3.UP * 0.5, primary, 3.0 * size, 5.0 * size, 0.18)
 
 
 func explosion(pos: Vector3, radius: float, color: Color = HOT_ORANGE) -> void:
 	var s := radius / 3.0
-	burst(&"flash", pos, Basis.IDENTITY, Color(1.0, 0.9, 0.7), 1, 2.6 * s)
+	burst(&"flash", pos, Basis.IDENTITY, Color(1.0, 0.85, 0.6), 1, 1.6 * s)
 	burst(&"fireball", pos, Basis.IDENTITY, color, int(16 * s) + 6, s)
 	burst(&"sparks", pos, Basis.IDENTITY, color, int(30 * s) + 8, 1.3)
 	burst(&"smoke", pos, Basis.IDENTITY, Color(0.08, 0.07, 0.07), int(8 * s) + 4, s)
@@ -130,9 +147,13 @@ func shockwave(pos: Vector3, radius: float, color: Color, duration: float = 0.4,
 
 
 ## Melee arc. xform origin = swing pivot, -Z = swing center direction.
-func slash(xform: Transform3D, radius: float, direction: float, core: Color, edge: Color, duration: float = 0.2) -> void:
+## direction +1 sweeps left->right (clockwise from above), -1 right->left.
+func slash(xform: Transform3D, radius: float, direction: float, core: Color, edge: Color, duration: float = 0.16, arc_deg: float = 170.0) -> void:
+	var key := int(arc_deg)
+	if not _arc_meshes.has(key):
+		_arc_meshes[key] = _make_arc_mesh(deg_to_rad(arc_deg), 0.42, 1.0, int(arc_deg / 5.0) + 8)
 	var mi := MeshInstance3D.new()
-	mi.mesh = _arc_mesh
+	mi.mesh = _arc_meshes[key]
 	var m := ShaderMaterial.new()
 	m.shader = SLASH_SHADER
 	m.set_shader_parameter(&"core_color", core)
@@ -144,8 +165,61 @@ func slash(xform: Transform3D, radius: float, direction: float, core: Color, edg
 	mi.global_transform = xform
 	mi.scale = Vector3(radius, 1.0, radius)
 	var tw := mi.create_tween()
-	tw.tween_method(func(v: float): m.set_shader_parameter(&"progress", v), 0.0, 1.45, duration)
+	tw.tween_method(func(v: float): m.set_shader_parameter(&"progress", v), 0.0, 1.5, duration)
 	tw.tween_callback(mi.queue_free)
+
+
+## Bright diagonal cut streak across an enemy that just got hit by the blade.
+func slash_mark(pos: Vector3, swing_dir: Vector3, side: float, color: Color, scale: float = 1.0) -> void:
+	var radial := Vector3(swing_dir.x, 0.0, swing_dir.z)
+	radial = radial.normalized() if radial.length_squared() > 0.0001 else Vector3.FORWARD
+	var tangent := Vector3.UP.cross(radial) * (1.0 if side >= 0.0 else -1.0)
+	var line_dir := (tangent + Vector3.UP * 0.55).normalized()
+	var length := 2.3 * scale
+	var mi := _ribbon(color, 0.34 * scale)
+	var head := pos + line_dir * length * 0.5
+	mi.global_position = head
+	mi.look_at(head + line_dir, Vector3.UP)
+	mi.set_instance_shader_parameter(&"taper", 0.55)
+	var tw := mi.create_tween()
+	tw.tween_method(func(v: float): mi.set_instance_shader_parameter(&"trail_len", v), length * 0.25, length, 0.05)
+	tw.tween_method(func(v: float): mi.set_instance_shader_parameter(&"fade", v), 1.0, 0.0, 0.16)
+	tw.tween_callback(mi.queue_free)
+	burst(&"flash", pos, Basis.IDENTITY, color.lerp(Color.WHITE, 0.3), 1, 0.6 * scale)
+	burst(&"sparks", pos, basis_y((tangent + Vector3.UP * 0.4).normalized()), color, 6, 0.9)
+
+
+## Speed-lines left behind by a dash.
+func dash_streaks(from: Vector3, to: Vector3, color: Color) -> void:
+	var d := to - from
+	d.y = 0.0
+	var length := d.length()
+	if length < 0.6:
+		return
+	var dir := d / length
+	var side := Vector3.UP.cross(dir)
+	var heights := [0.35, 0.8, 1.3, 1.8]
+	for i in heights.size():
+		var mi := _ribbon(color, randf_range(0.06, 0.13))
+		var head := Vector3(to.x, heights[i], to.z) + side * randf_range(-0.4, 0.4) - dir * randf_range(0.1, 0.5)
+		mi.global_position = head
+		mi.look_at(head + dir, Vector3.UP)
+		mi.extra_cull_margin = length + 2.0
+		mi.set_instance_shader_parameter(&"trail_len", length * randf_range(0.75, 1.1))
+		mi.set_instance_shader_parameter(&"taper", 0.95)
+		var tw := mi.create_tween()
+		tw.tween_method(func(v: float): mi.set_instance_shader_parameter(&"fade", v), 1.0, 0.0, 0.26 + i * 0.04)
+		tw.tween_callback(mi.queue_free)
+
+
+func _ribbon(color: Color, width: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = _quad
+	mi.material_override = Projectile.tracer_material(color, width)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.extra_cull_margin = 4.0
+	world().add_child(mi)
+	return mi
 
 
 func afterimage(visual: ActorVisual, color: Color, duration: float = 0.28) -> void:
@@ -179,24 +253,26 @@ func damage_number(pos: Vector3, amount: float, crit: bool = false, color: Color
 		var old: Tween = l.get_meta(&"tw")
 		if old and old.is_valid():
 			old.kill()
-	l.text = str(int(round(amount))) + ("!" if crit else "")
-	l.font_size = 80 if crit else 54
-	l.modulate = color
+	l.text = str(int(round(amount)))
+	l.font_size = 62 if crit else 44
+	l.modulate = CRIT_PINK if crit else color
 	l.visible = true
-	var start := pos + Vector3(randf_range(-0.4, 0.4), 0.3, randf_range(-0.4, 0.4))
+	var start := pos + Vector3(randf_range(-0.5, 0.5), 0.2, randf_range(-0.5, 0.5))
 	l.global_position = start
-	l.scale = Vector3.ONE * (2.0 if crit else 1.5)
-	var drift := Vector3(randf_range(-0.6, 0.6), 1.4 if crit else 1.0, randf_range(-0.3, 0.3))
+	l.scale = Vector3.ONE * (2.1 if crit else 1.6)
+	var drift := Vector3(randf_range(-0.5, 0.5), 1.1 if crit else 0.8, randf_range(-0.3, 0.3))
 	var tw := l.create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(l, "scale", Vector3.ONE, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(l, "global_position", start + drift, 0.75).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	tw.tween_property(l, "modulate:a", 0.0, 0.3).set_delay(0.45)
+	tw.tween_property(l, "scale", Vector3.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(l, "global_position", start + drift, 0.6).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tw.tween_property(l, "modulate:a", 0.0, 0.25).set_delay(0.38)
 	tw.chain().tween_callback(func(): l.visible = false)
 	l.set_meta(&"tw", tw)
+	if crit:
+		text_popup(start + Vector3.UP * 0.5, "Critical!", CRIT_PINK, 30, 0.45)
 
 
-func text_popup(pos: Vector3, text: String, color: Color, size: int = 64) -> void:
+func text_popup(pos: Vector3, text: String, color: Color, size: int = 64, life: float = 0.9) -> void:
 	var l := _numbers[_number_idx]
 	_number_idx = (_number_idx + 1) % MAX_NUMBERS
 	if l.has_meta(&"tw"):
@@ -212,8 +288,8 @@ func text_popup(pos: Vector3, text: String, color: Color, size: int = 64) -> voi
 	var tw := l.create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(l, "scale", Vector3.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(l, "global_position", pos + Vector3.UP * 0.9, 0.9).set_ease(Tween.EASE_OUT)
-	tw.tween_property(l, "modulate:a", 0.0, 0.3).set_delay(0.6)
+	tw.tween_property(l, "global_position", pos + Vector3.UP * 0.9, life).set_ease(Tween.EASE_OUT)
+	tw.tween_property(l, "modulate:a", 0.0, 0.3).set_delay(life * 0.66)
 	tw.chain().tween_callback(func(): l.visible = false)
 	l.set_meta(&"tw", tw)
 
@@ -293,7 +369,7 @@ func spawn_portal(pos: Vector3, radius: float, duration: float, color: Color = G
 	burst(&"embers", pos, Basis.IDENTITY, color, 26, radius * 0.6)
 	var later := get_tree().create_timer(duration)
 	later.timeout.connect(func():
-		burst(&"flash", pos + Vector3.UP * 0.6, Basis.IDENTITY, color, 1, 2.5)
+		burst(&"flash", pos + Vector3.UP * 0.6, Basis.IDENTITY, color, 1, 1.1)
 		burst(&"goo", pos, Basis.IDENTITY, GOO_PURPLE, 18, 1.0)
 		shockwave(pos + Vector3.UP * 0.05, radius * 1.6, color, 0.3, 0.07))
 
@@ -391,14 +467,14 @@ func _preset(preset: StringName, color: Color) -> Dictionary:
 	match preset:
 		&"flash":
 			ppm.gravity = Vector3.ZERO
-			ppm.scale_min = 1.1
-			ppm.scale_max = 1.5
-			ppm.scale_curve = _curve([Vector2(0, 0.6), Vector2(0.2, 1.0), Vector2(1, 0)])
-			ppm.color_ramp = _ramp([hot * 2.0, color, Color(color, 0.0)], [0.0, 0.3, 1.0])
+			ppm.scale_min = 1.0
+			ppm.scale_max = 1.35
+			ppm.scale_curve = _curve([Vector2(0, 0.7), Vector2(0.15, 1.0), Vector2(1, 0.1)])
+			ppm.color_ramp = _ramp([color.lerp(Color.WHITE, 0.35) * 1.25, color, Color(color, 0.0)], [0.0, 0.35, 1.0])
 			ppm.angle_min = 0.0
 			ppm.angle_max = 360.0
-			cfg.lifetime = 0.09
-			cfg.mesh = _draw(&"sprite")
+			cfg.lifetime = 0.08
+			cfg.mesh = _draw(&"flare")
 		&"muzzle_sparks":
 			ppm.direction = Vector3.UP
 			ppm.spread = 16.0
@@ -412,7 +488,7 @@ func _preset(preset: StringName, color: Color) -> Dictionary:
 			ppm.scale_max = 1.0
 			ppm.scale_curve = _curve([Vector2(0, 1), Vector2(1, 0)])
 			ppm.color_ramp = _ramp([hot * 2.0, color, Color(color, 0.0)], [0.0, 0.4, 1.0])
-			cfg.lifetime = 0.12
+			cfg.lifetime = 0.1
 			cfg.mesh = _draw(&"streak")
 		&"sparks":
 			ppm.direction = Vector3.UP
@@ -534,6 +610,23 @@ func _preset(preset: StringName, color: Color) -> Dictionary:
 			cfg.lifetime = 1.2
 			cfg.explosiveness = 0.3
 			cfg.mesh = _draw(&"sprite")
+		&"dust":
+			ppm.direction = Vector3.UP
+			ppm.spread = 85.0
+			ppm.initial_velocity_min = 0.4
+			ppm.initial_velocity_max = 1.6
+			ppm.gravity = Vector3(0, 0.5, 0)
+			ppm.damping_min = 2.0
+			ppm.damping_max = 3.0
+			ppm.scale_min = 0.45
+			ppm.scale_max = 0.8
+			ppm.scale_curve = _curve([Vector2(0, 0.5), Vector2(1, 1.4)])
+			ppm.color_ramp = _ramp([Color(color, 0.0), Color(color, 0.32), Color(color, 0.0)], [0.0, 0.2, 1.0])
+			ppm.angle_max = 360.0
+			ppm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+			ppm.emission_sphere_radius = 0.25
+			cfg.lifetime = 0.6
+			cfg.mesh = _draw(&"smoke")
 		&"trail":
 			ppm.direction = Vector3.UP
 			ppm.spread = 180.0
@@ -567,15 +660,21 @@ func _draw(kind: StringName) -> Mesh:
 			q.material = m
 			mesh = q
 		&"streak":
-			var b := BoxMesh.new()
-			b.size = Vector3(0.035, 0.42, 0.035)
+			var b := QuadMesh.new()
+			b.size = Vector2(0.07, 0.75)
 			var m2 := ShaderMaterial.new()
-			m2.shader = ADD_SHADER
-			m2.set_shader_parameter(&"billboard", false)
-			m2.set_shader_parameter(&"softness", 0.0)
-			m2.set_shader_parameter(&"energy", 3.0)
+			m2.shader = STREAK_SHADER
+			m2.set_shader_parameter(&"energy", 3.2)
 			b.material = m2
 			mesh = b
+		&"flare":
+			var fq := QuadMesh.new()
+			fq.size = Vector2(1.0, 1.0)
+			var fm := ShaderMaterial.new()
+			fm.shader = FLARE_SHADER
+			fm.set_shader_parameter(&"energy", 1.7)
+			fq.material = fm
+			mesh = fq
 		&"chunk":
 			var s := SphereMesh.new()
 			s.radius = 0.07

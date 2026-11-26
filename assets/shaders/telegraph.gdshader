@@ -27,7 +27,7 @@ void fragment() {
 		float filled = 1.0 - smoothstep(progress - 0.02, progress, along);
 		float front = smoothstep(progress - 0.08, progress, along) * (1.0 - smoothstep(progress, progress + 0.01, along));
 		float chevron = step(0.5, fract(along * 6.0 - across * 0.6 - TIME * 3.0)) * 0.12;
-		alpha = outline * 0.9 + filled * (0.25 + chevron) + front * 0.8 + 0.05;
+		alpha = outline * 0.75 + filled * (0.1 + chevron * 0.5) + front * 0.6 + 0.03;
 	}
 	vec3 c = mix(color.rgb, vec3(1.0, 0.95, 0.8), flash);
 	ALBEDO = c * energy * (1.0 + flash * 2.0);

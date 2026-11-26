@@ -103,17 +103,20 @@ def save(name, x, peak=0.92):
 def gen():
     os.makedirs(OUT, exist_ok=True)
 
-    t = T(0.28)
-    thump = sweep(t, 190, 45, 6) * env(t, 0.001, 0.05)
-    crack = hp(noise(t), 1800) * env(t, 0.0005, 0.025)
-    zap = sweep(t, 2400, 300, 8, "square") * env(t, 0.001, 0.03) * 0.25
-    save("rifle_fire", room(drive(thump * 1.1 + crack * 0.7 + zap, 2.5), 0.12, 0.15))
+    # short + punchy: at 12 shots/s anything longer smears into mush
+    t = T(0.17)
+    thump = sweep(t, 175, 48, 7) * env(t, 0.0008, 0.03)
+    crack = hp(noise(t), 2600) * env(t, 0.0003, 0.008)
+    body = bp(noise(t), 600, 3500) * env(t, 0.001, 0.024) * 0.5
+    zap = sweep(t, 3200, 700, 9, "square") * env(t, 0.0005, 0.012) * 0.16
+    save("rifle_fire", room(drive(thump * 1.25 + crack * 0.8 + body + zap, 2.2), 0.07, 0.05))
 
-    t = T(0.5)
-    boom = sweep(t, 120, 32, 5) * env(t, 0.002, 0.14)
-    blast = onepole_lp(noise(t), np.linspace(6000, 400, len(t))) * env(t, 0.001, 0.12)
-    plasma = sweep(t, 1600, 120, 6, "saw") * env(t, 0.001, 0.06) * 0.3
-    save("shotgun_fire", room(drive(boom * 1.2 + blast * 1.3 + plasma, 3.0), 0.15, 0.25))
+    t = T(0.42)
+    boom = sweep(t, 125, 30, 5) * env(t, 0.002, 0.12)
+    blast = onepole_lp(noise(t), np.linspace(7000, 500, len(t))) * env(t, 0.001, 0.09)
+    plasma = sweep(t, 1800, 140, 6, "saw") * env(t, 0.001, 0.05) * 0.28
+    crack = hp(noise(t), 3000) * env(t, 0.0003, 0.012)
+    save("shotgun_fire", room(drive(boom * 1.4 + blast * 1.3 + plasma + crack * 0.6, 3.0), 0.12, 0.15))
 
     t = T(0.09)
     save("dry_fire", bp(noise(t), 1500, 5000) * env(t, 0.0005, 0.01) + sweep(t, 900, 600) * env(t, 0.001, 0.015) * 0.4, 0.5)
@@ -121,25 +124,32 @@ def gen():
     t = T(0.1)
     save("bullet_impact", bp(noise(t), 2000, 7000) * env(t, 0.0005, 0.018) + sweep(t, 3200, 1800) * env(t, 0.0, 0.01) * 0.3, 0.6)
 
-    t = T(0.18)
-    squelch = onepole_lp(noise(t), 900 + 700 * np.sin(t * 90)) * env(t, 0.002, 0.05)
-    save("flesh_hit", drive(squelch * 1.5 + sweep(t, 320, 110) * env(t, 0.001, 0.05) * 0.8, 2.0), 0.7)
+    # wet crunchy tick for every bullet that lands
+    t = T(0.11)
+    tick = bp(noise(t), 900, 4500) * env(t, 0.0003, 0.011)
+    squish = onepole_lp(noise(t), 1400) * env(t, 0.001, 0.03) * (0.6 + 0.4 * np.sin(2 * np.pi * 55 * t))
+    thud = sweep(t, 210, 90, 4) * env(t, 0.001, 0.025)
+    save("flesh_hit", drive(tick * 1.2 + squish + thud * 0.9, 2.5), 0.7)
 
     t = T(0.35)
     ping = sum(np.sin(2 * np.pi * f * t) * env(t, 0.0005, d) for f, d in [(1250, 0.12), (1870, 0.09), (2620, 0.06)])
     save("crit_hit", ping * 0.6 + pad(onepole_lp(noise(T(0.1)), 1200) * env(T(0.1), 0.001, 0.03), 0.35), 0.8)
 
-    t = T(0.26)
-    shape = np.sin(np.pi * np.clip(t / 0.24, 0, 1)) ** 2
-    cut = 400 + 3800 * np.sin(np.pi * np.clip(t / 0.24, 0, 1))
-    hum = sweep(t, 220, 900, 2, "saw") * shape * 0.12
-    save("melee_swing", onepole_lp(hp(noise(t), 300), cut) * shape * 1.6 + hum, 0.75)
+    # energy blade: airy whoosh + detuned saw hum + a bright "shing"
+    t = T(0.22)
+    shape = np.sin(np.pi * np.clip(t / 0.16, 0, 1)) ** 1.5
+    air = onepole_lp(hp(noise(t), 500), 900 + 5000 * np.sin(np.pi * np.clip(t / 0.16, 0, 1))) * shape
+    hum = (sweep(t, 330, 990, 2, "saw") + sweep(t, 336, 1004, 2, "saw")) * 0.5 * shape * 0.22
+    shing = np.sin(2 * np.pi * 2400 * t) * env(t, 0.002, 0.05) * 0.15
+    save("melee_swing", air * 1.4 + onepole_lp(hum, 3000) + shing, 0.75)
 
-    t = T(0.4)
-    thud = sweep(t, 140, 38, 5) * env(t, 0.001, 0.08)
-    crunch = drive(bp(noise(t), 300, 3500) * env(t, 0.001, 0.05), 4.0)
-    ring = sum(np.sin(2 * np.pi * f * t) * env(t, 0.001, 0.15) for f in (620, 935)) * 0.2
-    save("melee_hit", room(drive(thud * 1.4 + crunch + ring, 2.0), 0.15, 0.2))
+    # slice transient + crunch + sub punch + sizzle tail
+    t = T(0.32)
+    slice_ = hp(noise(t), 3000) * env(t, 0.0003, 0.02)
+    crunch = drive(bp(noise(t), 250, 2500) * env(t, 0.001, 0.045), 5.0)
+    sub = sweep(t, 115, 38, 5) * env(t, 0.001, 0.09)
+    sizzle = hp(noise(t), 4000) * env(t, 0.005, 0.12) * 0.25 * (rng.random(len(t)) > 0.5)
+    save("melee_hit", room(drive(sub * 1.7 + crunch + slice_ * 0.8 + sizzle, 2.2), 0.1, 0.1))
 
     t = T(0.9)
     swell = onepole_lp(noise(t), 2000) * np.clip(t / 0.08, 0, 1) * np.exp(-t / 0.25)
@@ -148,10 +158,13 @@ def gen():
     ring = sum(np.sin(2 * np.pi * f * t) * env(t, 0.002, 0.4) for f in (330, 495, 742)) * 0.15
     save("finisher", room(drive(boom * 1.5 + crunch + swell * 0.6 + ring, 2.0), 0.25, 0.4))
 
-    t = T(0.32)
-    shape = np.clip(t / 0.03, 0, 1) * np.exp(-t / 0.1)
-    jet = onepole_lp(noise(t), np.linspace(800, 5000, len(t))) * shape
-    save("dash", jet * 1.3 + sweep(t, 180, 700, 2) * shape * 0.3, 0.7)
+    # sharp thruster burst
+    t = T(0.26)
+    shape = np.clip(t / 0.012, 0, 1) * np.exp(-t / 0.07)
+    jet = onepole_lp(noise(t), np.linspace(7000, 1200, len(t))) * shape
+    whoosh = bp(noise(t), 300, 2000) * np.clip(t / 0.02, 0, 1) * np.exp(-t / 0.1)
+    tone = sweep(t, 620, 200, 3) * shape * 0.25
+    save("dash", jet * 1.2 + whoosh * 0.8 + tone, 0.7)
 
     t = T(0.4)
     hiss = hp(noise(t), 2500) * np.clip(t / 0.01, 0, 1) * np.exp(-t / 0.15)
@@ -170,10 +183,13 @@ def gen():
     ring = np.sin(2 * np.pi * 180 * t) * env(t, 0.002, 0.3) * 0.6
     save("nova", room(drive(charge + burst + ring, 2.0), 0.25, 0.3))
 
-    t = T(0.5)
-    splat = onepole_lp(noise(t), 700 + 500 * np.sin(t * 60)) * env(t, 0.002, 0.09)
-    gurgle = sweep(t, 220, 55, 3) * env(t, 0.003, 0.12) * (0.6 + 0.4 * np.sin(2 * np.pi * 35 * t))
-    save("enemy_die", room(drive(splat * 1.6 + gurgle, 2.5), 0.12, 0.2), 0.8)
+    # wet pop + splat + sub drop
+    t = T(0.45)
+    pop = sweep(t, 420, 80, 6) * env(t, 0.001, 0.05)
+    splat_ = onepole_lp(noise(t), np.linspace(5000, 600, len(t))) * env(t, 0.001, 0.07)
+    gurgle = onepole_lp(noise(t), 500) * env(t, 0.02, 0.15) * (0.5 + 0.5 * np.sin(2 * np.pi * 30 * t))
+    sub = sweep(t, 90, 30, 4) * env(t, 0.002, 0.12)
+    save("enemy_die", room(drive(pop + splat_ * 1.5 + gurgle * 0.6 + sub * 1.4, 2.5), 0.1, 0.1), 0.85)
 
     t = T(0.32)
     spit = bp(noise(t), 500, 2200) * env(t, 0.003, 0.06)

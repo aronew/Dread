@@ -17,11 +17,11 @@ The first open imports the assets (a few seconds). No plugins needed.
 
 | Input | Action |
 |---|---|
-| **WASD** | Move (camera-relative) |
-| **Mouse** | Aim (the upper body tracks the cursor, the legs follow your movement) |
+| **WASD** | Move (camera-relative, 10 m/s, near-instant accel) |
+| **Mouse** | Aim. Hover near an enemy and pink lock brackets show what your shots will hit (aim assist + bullet magnetism) |
 | **LMB** | Fire (spends **Energy**) |
-| **RMB / F** | Energy blade cleave: **refunds Energy** on every hit, **reflects** bile globs, and does a **finisher** on glowing (staggered or low-HP) enemies |
-| **Space / Shift** | Dash (2 charges, invulnerable, passes through enemies) |
+| **RMB / F** | Energy blade: a **3-hit combo** (mash it). Every hit **refunds Energy**, swings **reflect** bile globs, and a press next to a glowing (staggered or low-HP) enemy does a **finisher**. Slash during a dash for a dash-strike |
+| **Space / Shift** | Dash (3 charges, invulnerable, passes through enemies, buffered) |
 | **Q** | Micro-Rocket Swarm (homing salvo onto the enemies nearest your cursor) |
 | **E** | Arc Nova (radial shockwave: knockback, stagger, clears projectiles) |
 | **1 / 2, wheel** | Pulse Rifle / Plasma Scattergun |
@@ -30,6 +30,9 @@ The first open imports the assets (a few seconds). No plugins needed.
 Gamepad: left stick moves, right stick aims, RT fires, RB uses the blade, A or LT dashes, LB is Q, Y is E.
 
 **Debug keys:** F1 spawns a swarm, F2 a spitter, F3 a hulk. F5 toggles god mode, F6 kills everything, F7 toggles slow-mo.
+
+**Settings:** F8 cycles graphics quality (LOW / MEDIUM / HIGH, saved; MEDIUM is the default). F9 toggles the FPS readout. M toggles music.
+If the game ever feels sluggish, check the FPS readout first. Low framerate ruins game feel faster than anything else, and LOW mode is much lighter.
 
 ### The core loop
 
@@ -69,6 +72,7 @@ src/
 tests/                  smoke_test.gd (33 automated checks) and autopilot.gd (bot)
 docs/                   ARCHITECTURE.md, ASSET_PIPELINE.md
 tools/gen_sfx.py        regenerates the placeholder SFX
+tools/gen_music.py      regenerates the placeholder combat music loop
 ```
 
 ## Automated checks
@@ -77,14 +81,17 @@ tools/gen_sfx.py        regenerates the placeholder SFX
 godot --headless --path . --fixed-fps 60 -- --smoke-test
 ```
 
-This runs 33 gameplay assertions: movement, dash i-frames, energy economy, melee
-refund, reflect, brute stagger→finisher→health orbs, all three AI telegraph→attack
-loops, both abilities, and a 25-second wave soak with an autopilot bot. It exits
-non-zero on any failure.
+This runs 38 gameplay assertions and exits non-zero on any failure. It covers:
+
+- movement speed and the 3 dash charges;
+- the rifle killing small enemies, and **aim-assist accuracy on a strafing enemy with a deliberately sloppy cursor**;
+- scattergun one-shots and the full 3-hit combo chain;
+- the blade interrupting wind-ups, reflect, and brute stagger → finisher → health orbs;
+- all three AI telegraph → attack loops, both abilities, and a 30-second wave soak with an autopilot bot.
 
 Other user args (after `--`):
 
-- `--autopilot` hands control to the bot with god mode on, for demos and soak tests.
+- `--autopilot` hands control to the bot with god mode on, for demos and soak tests. Use `--autopilot=melee` for a blade-focused bot.
 - `--showcase` lines up the player and one of each enemy, idle. Use it to inspect art after swapping models.
 - `--screenshot=out.png --shot-delay=6` saves a frame and quits.
 

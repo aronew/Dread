@@ -16,6 +16,7 @@ move_speed = 3.1
 acceleration = 12.0
 radius = 1.15
 knockback_resist = 0.85
+interruptible = false
 spawn_grace = 0.9
 stagger_duration = 2.8
 finishable_hp_ratio = 0.0

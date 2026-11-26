@@ -34,6 +34,12 @@ func shake(trauma: float, direction: Vector3 = Vector3.ZERO) -> void:
 		camera.add_trauma(trauma * shake_multiplier, direction)
 
 
+## Directional camera jolt without shake noise (recoil, dashes).
+func kick(direction: Vector3, amount: float) -> void:
+	if camera and camera.has_method(&"kick"):
+		camera.kick(direction, amount * shake_multiplier)
+
+
 func zoom_punch(amount: float) -> void:
 	if camera and camera.has_method(&"zoom_punch"):
 		camera.zoom_punch(amount)

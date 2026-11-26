@@ -45,7 +45,7 @@ static func nearest_enemy(tree: SceneTree, from: Vector3, max_dist: float = INF)
 
 
 ## Radial damage with falloff. Returns number of enemies hit.
-static func explode(tree: SceneTree, center: Vector3, radius: float, damage: float, source: Node,
+static func explode(tree: SceneTree, center: Vector3, radius: float, damage: float, source,
 		knockback: float = 10.0, poise: float = 40.0, kind: DamageInfo.Kind = DamageInfo.Kind.EXPLOSION) -> int:
 	var hits := 0
 	for e in enemies_in_radius(tree, center, radius):

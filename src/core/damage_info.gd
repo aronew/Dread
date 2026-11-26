@@ -13,14 +13,17 @@ var direction: Vector3 = Vector3.ZERO  ## normalized travel direction of the hit
 var knockback: float = 0.0             ## impulse in m/s applied along direction
 var poise_damage: float = 0.0          ## stagger buildup
 var is_crit: bool = false
+var stun: float = 0.0                  ## hit-stun seconds (interrupts light enemies)
 var tags: PackedStringArray = []       ## free-form (e.g. "ricochet", "reflected") for mods
 
 
-static func make(p_amount: float, p_kind: Kind, p_source: Node, p_pos: Vector3, p_dir: Vector3) -> DamageInfo:
+## p_source is untyped on purpose: an attacker can die while its projectile is in
+## flight, and a freed object must become null rather than raise an error.
+static func make(p_amount: float, p_kind: Kind, p_source, p_pos: Vector3, p_dir: Vector3) -> DamageInfo:
 	var d := DamageInfo.new()
 	d.amount = p_amount
 	d.kind = p_kind
-	d.source = p_source
+	d.source = p_source if is_instance_valid(p_source) else null
 	d.position = p_pos
 	d.direction = p_dir.normalized() if p_dir.length_squared() > 0.0001 else Vector3.ZERO
 	return d

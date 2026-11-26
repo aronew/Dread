@@ -13,6 +13,9 @@ var _pause_label: Label
 func _ready() -> void:
 	camera.set_target(player)
 	player.camera = camera
+	var gfx := GraphicsSettings.new()
+	gfx.setup($WorldEnvironment.environment)
+	add_child(gfx)
 	_build_pause_overlay()
 	_handle_cmdline()
 
@@ -81,8 +84,11 @@ func _handle_cmdline() -> void:
 	var shot_path := ""
 	var shot_delay := 6.0
 	for a in args:
-		if a == "--autopilot":
-			add_child(preload("res://tests/autopilot.gd").new())
+		if a == "--autopilot" or a.begins_with("--autopilot="):
+			var bot: Node = preload("res://tests/autopilot.gd").new()
+			if a.begins_with("--autopilot="):
+				bot.style = a.trim_prefix("--autopilot=")
+			add_child(bot)
 		elif a == "--showcase":
 			_showcase()
 		elif a == "--smoke-test":

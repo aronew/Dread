@@ -20,6 +20,7 @@ signal died(enemy: Enemy, info: DamageInfo)
 @export var poise_regen: float = 15.0
 @export var stagger_duration: float = 1.2
 @export var finishable_hp_ratio: float = 0.25
+@export var interruptible: bool = true   ## blade hits cancel wind-ups and stun briefly
 @export_group("Attack")
 @export var attack_range: float = 2.5
 @export var attack_cooldown: float = 1.2
@@ -51,6 +52,7 @@ var _finish_marker: Node3D
 var _hit_sfx_t: float = 0.0
 var _sep_frame: int = 0
 var _sep_cache: Vector3 = Vector3.ZERO
+var _stun_t: float = 0.0
 
 
 func _ready() -> void:
@@ -63,6 +65,7 @@ func _ready() -> void:
 	health.died.connect(_on_died)
 	visual = Assets.create_actor_visual(visual_id)
 	add_child(visual)
+	visual.set_base_rim(gore_primary.lerp(Color.WHITE, 0.15), 0.45)
 	nav = get_node_or_null(^"NavigationAgent3D")
 	if nav == null:
 		nav = NavigationAgent3D.new()
@@ -99,11 +102,12 @@ func _setup() -> void:
 
 
 func _emerge() -> void:
+	var base := visual._base_scale
 	visual.position.y = -1.8
-	visual.scale = Vector3(0.6, 1.4, 0.6)
+	visual.scale = base * Vector3(0.6, 1.4, 0.6)
 	var tw := visual.create_tween().set_parallel(true)
 	tw.tween_property(visual, "position:y", 0.0, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(visual, "scale", Vector3.ONE, 0.45).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(visual, "scale", base, 0.45).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 
 func _physics_process(delta: float) -> void:
@@ -111,8 +115,12 @@ func _physics_process(delta: float) -> void:
 	_hit_sfx_t -= delta
 	if not _dead and not fsm.is_in(&"staggered"):
 		poise = minf(poise + poise_regen * delta, max_poise)
-	fsm.update(delta)
-	fsm.physics_update(delta)
+	if _stun_t > 0.0 and not _dead:
+		_stun_t -= delta
+		brake(delta)
+	else:
+		fsm.update(delta)
+		fsm.physics_update(delta)
 	velocity += _knock
 	_knock = _knock.move_toward(Vector3.ZERO, 45.0 * delta)
 	velocity.y = 0.0
@@ -148,6 +156,12 @@ func dir_to_target() -> Vector3:
 	var d := target.global_position - global_position
 	d.y = 0.0
 	return d.normalized() if d.length_squared() > 0.0001 else facing
+
+
+## Aim-assist highlight from the player.
+func set_aimed(on: bool) -> void:
+	if not _dead:
+		visual.set_highlight(on)
 
 
 func is_finishable() -> bool:
@@ -290,6 +304,10 @@ func apply_damage(info: DamageInfo) -> float:
 	if fsm.is_in(&"staggered"):
 		kb *= 0.4
 	_knock += Vector3(info.direction.x, 0, info.direction.z) * kb
+	if info.stun > 0.0 and interruptible and not fsm.is_in(&"staggered"):
+		_stun_t = maxf(_stun_t, info.stun)
+		if fsm.is_in(&"telegraph") or fsm.is_in(&"attack"):
+			fsm.change(&"chase")
 	poise -= info.poise_damage
 	if poise <= 0.0 and not fsm.is_in(&"staggered") and not fsm.is_in(&"dead"):
 		fsm.change(&"staggered", {"duration": stagger_duration})
@@ -301,16 +319,16 @@ func apply_damage(info: DamageInfo) -> float:
 
 
 func _hit_feedback(info: DamageInfo) -> void:
-	visual.flash(Color(1.0, 1.0, 1.0), 1.0 if info.amount > 20.0 else 0.7)
+	var heavy := info.is_melee() or info.is_crit or info.amount >= 30.0
+	visual.flash(Color(1.0, 1.0, 1.0), 1.7 if heavy else 1.15)
+	visual.squash(0.28 if info.is_melee() else (0.16 if heavy else 0.1))
 	var num_color := Color(1.0, 1.0, 1.0)
-	if info.is_crit:
-		num_color = Color(1.0, 0.85, 0.2)
-	elif info.is_melee():
+	if info.is_melee():
 		num_color = Color(0.45, 0.85, 1.0)
 	elif info.kind == DamageInfo.Kind.EXPLOSION:
 		num_color = Color(1.0, 0.55, 0.2)
 	Vfx.damage_number(info.position + Vector3.UP * (0.6 + radius), info.amount, info.is_crit, num_color)
-	var amt := clampf(info.amount / 25.0, 0.4, 1.6) * gore_scale
+	var amt := clampf(info.amount / 30.0, 0.35, 1.6) * gore_scale * (1.3 if info.is_melee() else 0.8)
 	Vfx.gore(info.position, info.direction, gore_primary, amt, gore_secondary)
 	if _hit_sfx_t <= 0.0:
 		_hit_sfx_t = 0.05
@@ -325,6 +343,9 @@ func _on_died(info: DamageInfo) -> void:
 	collision_mask = Combat.LAYER_WORLD
 	visual.play_action(&"die")
 	visual.set_charge(0.0)
+	visual.set_highlight(false)
+	visual._squash = 0.0
+	visual._squash_vel = 0.0
 	if _finish_marker:
 		_finish_marker.queue_free()
 		_finish_marker = null
@@ -332,17 +353,22 @@ func _on_died(info: DamageInfo) -> void:
 	var big := info.kind in [DamageInfo.Kind.FINISHER, DamageInfo.Kind.EXPLOSION] or info.is_crit
 	Vfx.death_burst(global_position + Vector3.UP * (0.6 + radius * 0.5), dir, gore_primary, gore_secondary, gore_scale * (1.4 if big else 1.0))
 	Sfx.play(&"enemy_die", global_position, -3.0, 0.15, 30)
-	Feel.hitstop(0.025 * gore_scale, 0.1)
-	Feel.shake(0.06 * gore_scale, dir)
+	if info.is_melee() or gore_scale >= 1.5:
+		Feel.hitstop(0.03 * gore_scale, 0.08)
+	Feel.shake(0.05 * gore_scale, dir)
+	Feel.kick(dir, 0.15 * gore_scale)
 	_drop_loot(info)
 	Events.enemy_killed.emit(self, info)
 	Events.hit_confirmed.emit(true, info.is_crit)
 	died.emit(self, info)
 	_knock = Vector3(dir.x, 0, dir.z) * 6.0
-	var tw := visual.create_tween().set_parallel(true)
-	tw.tween_property(visual, "scale", Vector3(1.3, 0.05, 1.3), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	tw.tween_property(visual, "position:y", -0.3, 0.25)
-	tw.chain().tween_callback(queue_free)
+	# pop: swell for a beat, then splat flat
+	var base := visual._base_scale
+	var tw := visual.create_tween()
+	tw.tween_property(visual, "scale", base * Vector3(1.3, 1.25, 1.3), 0.05).set_ease(Tween.EASE_OUT)
+	tw.tween_property(visual, "scale", base * Vector3(1.4, 0.04, 1.4), 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(visual, "position:y", -0.3, 0.16)
+	tw.tween_callback(queue_free)
 
 
 func _drop_loot(info: DamageInfo) -> void:

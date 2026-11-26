@@ -15,7 +15,7 @@ func _exit_tree() -> void:
 	PlaceholderKit._mat_cache.clear()
 	PlaceholderKit._mesh_cache.clear()
 	Projectile._mat_cache.clear()
-	Projectile._shared_mesh = null
+	Projectile._quad = null
 
 
 func create_actor_visual(id: StringName) -> ActorVisual:
@@ -56,6 +56,14 @@ func instance_prop(id: StringName) -> Node3D:
 		_props[id] = load(path) if path != "" and ResourceLoader.exists(path) else null
 	var packed: PackedScene = _props[id]
 	return packed.instantiate() as Node3D if packed else null
+
+
+func get_music(id: StringName) -> AudioStream:
+	var base: String = Manifest.MUSIC.get(id, "")
+	for ext in [".ogg", ".mp3", ".wav"]:
+		if base != "" and ResourceLoader.exists(base + ext):
+			return load(base + ext)
+	return null
 
 
 func get_sfx(id: StringName) -> AudioStream:
